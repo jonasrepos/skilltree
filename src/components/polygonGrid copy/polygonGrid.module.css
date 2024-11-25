@@ -1,6 +1,6 @@
 #polygonGrid {
-  margin-top: 25px;
-  items: center;
+  align-items: center;
+  margin: 200px;
 }
 
 #oddRow {
