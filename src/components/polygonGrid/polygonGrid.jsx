@@ -1,86 +1,111 @@
 import styles from "./polygonGrid.module.css";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 const PolygonGrid = () => {
-  const [position, setPosition] = useState({ x: 100, y: 100 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [hexes, setHexes] = useState([
+    { id: 1, x: 100, y: 100 },
+    { id: 2, x: 300, y: 300 },
+    { id: 3, x: 300, y: 300 },
+    { id: 4, x: 300, y: 300 },
+    { id: 5, x: 300, y: 300 },
+    { id: 6, x: 300, y: 300 },
+    { id: 7, x: 300, y: 300 },
+    { id: 8, x: 300, y: 300 },
+    { id: 9, x: 300, y: 300 },
+  ]);
+  const [draggingHex, setDraggingHex] = useState(null);
 
-  const [keysPressed, setKeysPressed] = useState({});
+  const HEX_SIZE = 100; // Breite und Höhe des Sechsecks (muss mit CSS übereinstimmen)
+  const SNAP_DISTANCE = 50; // Abstand für "Schnappen"
 
-  const handleKeyDown = (e) => {
-    setKeysPressed((prev) => ({ ...prev, [e.key]: true }));
+  const startDrag = (id) => {
+    setDraggingHex(id);
   };
 
-  const handleKeyUp = (e) => {
-    setKeysPressed((prev) => ({ ...prev, [e.key]: false }));
-  };
+  const onDrag = (e) => {
+    if (draggingHex !== null) {
+      const x = e.clientX - HEX_SIZE / 2;
+      const y = e.clientY - HEX_SIZE / 2;
 
-  useEffect(() => {
-    const move = () => {
-      const step = 100;
-      setPosition((prev) => {
-        let { x, y } = prev;
+      setHexes((otherHexes) =>
+        otherHexes.map((hex) =>
+          hex.id === draggingHex ? { ...hex, x, y } : hex
+        )
+      );
 
-        if (keysPressed["w"]) y = Math.max(y - step, 0); // Up
-        if (keysPressed["s"]) y = Math.min(y + step, window.innerHeight - 30); // Down
-        if (keysPressed["a"]) x = Math.max(x - step, 0); // Left
-        if (keysPressed["d"]) x = Math.min(x + step, window.innerWidth - 30); // Right
-
-        return { x, y };
-      });
-    };
-
-    const interval = setInterval(move, 50); // Move at a fixed interval
-    return () => clearInterval(interval);
-  }, [keysPressed]);
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, []);
-
-  const handleMouseDown = (e) => {
-    setIsDragging(true);
-    setOffset({ x: e.clientX - position.x, y: e.clientY - position.y });
-  };
-
-  const handleMouseMove = (e) => {
-    if (isDragging) {
-      setPosition({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+      snapToNeighbor(x, y);
     }
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
+  const stopDrag = () => {
+    setDraggingHex(null);
   };
 
-  React.useEffect(() => {
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isDragging, offset]);
+  const snapToNeighbor = (dragX, dragY) => {
+    const neighbors = hexes.filter((hex) => hex.id !== draggingHex);
+
+    for (const neighbor of neighbors) {
+      const possiblePositions = [
+        {
+          x: neighbor.x + HEX_SIZE,
+          y: neighbor.y,
+        },
+        {
+          x: neighbor.x - HEX_SIZE,
+          y: neighbor.y,
+        },
+        {
+          x: neighbor.x + HEX_SIZE * 0.5,
+          y: neighbor.y - HEX_SIZE * 0.75,
+        },
+        {
+          x: neighbor.x - HEX_SIZE * 0.5,
+          y: neighbor.y - HEX_SIZE * 0.75,
+        },
+        {
+          x: neighbor.x + HEX_SIZE * 0.5,
+          y: neighbor.y + HEX_SIZE * 0.75,
+        },
+        {
+          x: neighbor.x - HEX_SIZE * 0.5,
+          y: neighbor.y + HEX_SIZE * 0.75,
+        },
+      ];
+
+      // Check if the dragged hexagon is close enough to snap to a position
+      for (const pos of possiblePositions) {
+        if (
+          Math.abs(dragX - pos.x) < SNAP_DISTANCE &&
+          Math.abs(dragY - pos.y) < SNAP_DISTANCE
+        ) {
+          setHexes((prevHexes) =>
+            prevHexes.map((hex) =>
+              hex.id === draggingHex ? { ...hex, x: pos.x, y: pos.y } : hex
+            )
+          );
+          return;
+        }
+      }
+    }
+  };
 
   return (
     <div
-      style={{
-        position: "absolute",
-        top: position.y,
-        left: position.x,
-        width: 30,
-        height: 30,
-        backgroundColor: "blue",
-        cursor: "grab",
-      }}
-      onMouseDown={handleMouseDown}
-    />
+      className={styles.container}
+      onMouseMove={onDrag}
+      onMouseUp={stopDrag}
+      onMouseLeave={stopDrag}
+    >
+      {hexes.map((hex) => (
+        <div
+          key={hex.id}
+          id={`hex-${hex.id}`}
+          className={styles.hexagon}
+          style={{ left: `${hex.x}px`, top: `${hex.y}px` }}
+          onMouseDown={() => startDrag(hex.id)}
+        ></div>
+      ))}
+    </div>
   );
 };
 
